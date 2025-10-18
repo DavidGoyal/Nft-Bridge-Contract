@@ -23,7 +23,8 @@ contract EthBridge is Ownable, Pausable, ReentrancyGuard{
 
     enum BurnType {
         ERC721Burnable,
-        SeaDrop
+        SeaDrop,
+        TransferToZeroAddress
     }
     
     struct CollectionInfo{
@@ -91,10 +92,13 @@ contract EthBridge is Ownable, Pausable, ReentrancyGuard{
                 tokenId
             );
         }
-        else{
+        else if(burnType == BurnType.SeaDrop){
             ERC721SeaDropCloneable(nftAddress).burn(
                 tokenId
             );
+        }
+        else{
+            IERC721(nftAddress).transferFrom(msg.sender,address(0),tokenId);
         }
 
         emit Deposit(nftAddress,msg.sender, tokenId);
