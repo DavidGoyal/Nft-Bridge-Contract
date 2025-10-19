@@ -20,16 +20,19 @@ contract EthBridge is Ownable, Pausable, ReentrancyGuard{
     error InvalidOwner();
     error InsufficientPayment();
     error CollectionNotApproved();
+    error InvalidRecipient();
 
     enum BurnType {
         ERC721Burnable,
         SeaDrop,
-        TransferToZeroAddress
+        TransferToZeroAddress,
+        TransferToRecipient
     }
     
     struct CollectionInfo{
         uint256 bridgeCost;
         BurnType burnType;
+        address recipient;
     }
 
     mapping (address=>bool) public approvedAddresses;
@@ -61,14 +64,16 @@ contract EthBridge is Ownable, Pausable, ReentrancyGuard{
         approvedAddresses[nftAddress] = true;
     }
 
-    function setCollectionInfo(address nftAddress,uint256 _bridgeCost, BurnType _burnType) 
+    function setCollectionInfo(address nftAddress,uint256 _bridgeCost, BurnType _burnType, address _recipient) 
         external 
         isCollectionApproved(nftAddress) 
         onlyOwner
     {
+        if(_burnType == BurnType.TransferToRecipient && _recipient == address(0)) revert InvalidRecipient();
         collectionInfo[nftAddress]=CollectionInfo(
             _bridgeCost,
-            _burnType
+            _burnType,
+            _recipient
         );
     }
 
@@ -97,8 +102,11 @@ contract EthBridge is Ownable, Pausable, ReentrancyGuard{
                 tokenId
             );
         }
-        else{
+        else if(burnType == BurnType.TransferToZeroAddress){
             IERC721(nftAddress).transferFrom(msg.sender,address(0),tokenId);
+        }
+        else{
+            IERC721(nftAddress).transferFrom(msg.sender,collectionInfo[nftAddress].recipient,tokenId);
         }
 
         emit Deposit(nftAddress,msg.sender, tokenId);
